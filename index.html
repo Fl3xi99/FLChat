@@ -68,7 +68,7 @@ footer{font-size:12px;color:var(--muted);margin-top:8px}
 </div>
 
 <script type="module">
-// --- CONFIG: paste your Firebase config here ---
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBzHYgg5EUAXRKxfAjCC1FXqwxOKi0yaiA",
   authDomain: "flchat-eac66.firebaseapp.com",
@@ -79,10 +79,9 @@ const firebaseConfig = {
   appId: "1:362003611935:web:45f12a121dee1df65ef02a",
   measurementId: "G-H8EE0EMZ4N"
 };
-// ------------------------------------------------
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
-import { getDatabase, ref, push, set, onChildAdded, onValue, update, remove } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js';
+import { getDatabase, ref, push, set, onChildAdded, onValue, update, remove, get } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -102,41 +101,51 @@ let myId = 'u_' + Math.random().toString(36).slice(2,9);
 let currentRoom = null;
 let partnerId = null;
 
-// FIXED room ID for testing
+// Fixed room for simplicity
 const waitingRoomId = "testRoom";
 
 function setStatus(t){ statusEl.textContent = t; }
-
 function addMessage(text, who){
   const div = document.createElement('div');
-  div.className = 'msg ' + (who === myId ? 'me' : '');
+  div.className = 'msg ' + (who === myId ? 'me' : 'system');
   div.textContent = text;
   messagesEl.appendChild(div);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
+function resetChat(){ messagesEl.innerHTML = ''; }
 
 async function findOrCreateRoom(){
   setStatus('Searching for a partner...');
-  const roomRef = ref(db, `rooms/${waitingRoomId}`);
+  resetChat();
 
-  // Add our user
+  const usersRef = ref(db, `rooms/${waitingRoomId}/users`);
+  const snapshot = await get(usersRef);
+  const users = snapshot.exists() ? snapshot.val() : {};
+
+  if(Object.keys(users).length >= 2){
+    addMessage('⚠️ Room is full. Try again later.', 'system');
+    setStatus('Room full');
+    startBtn.disabled = false;
+    return null;
+  }
+
   await set(ref(db, `rooms/${waitingRoomId}/users/${myId}`), {
     joinedAt: Date.now(),
     name: nickEl.value || 'Anon'
   });
 
-  // Set room status
-  await update(roomRef, {status:'ready'});
+  await update(ref(db, `rooms/${waitingRoomId}`), {status:'ready'});
   return waitingRoomId;
 }
 
 function listenRoom(id){
+  if(!id) return;
   currentRoom = id;
   roomIdEl.textContent = id;
 
   // Messages
   const msgsRef = ref(db, `rooms/${id}/messages`);
-  onChildAdded(msgsRef, (snap) => {
+  onChildAdded(msgsRef, snap => {
     const m = snap.val();
     if(!m) return;
     addMessage((m.name ? m.name+': ' : '') + m.text, m.sender);
@@ -144,15 +153,23 @@ function listenRoom(id){
 
   // Users / partner
   const usersRef = ref(db, `rooms/${id}/users`);
-  onValue(usersRef, (snap) => {
+  onValue(usersRef, snap => {
     const users = snap.exists() ? snap.val() : {};
-    const ids = Object.keys(users || {}).filter(u => u !== myId);
+    const ids = Object.keys(users).filter(u => u !== myId);
+    const oldPartner = partnerId;
     partnerId = ids.length ? ids[0] : null;
     partnerEl.textContent = partnerId || '—';
-    if(partnerId) {
+
+    if(partnerId){
+      if(oldPartner !== partnerId){
+        addMessage('💬 Partner connected', 'system');
+      }
       setStatus('Connected');
       enableChat(true);
     } else {
+      if(oldPartner !== null){
+        addMessage('⚠️ Partner disconnected', 'system');
+      }
       setStatus('Waiting for partner...');
       enableChat(false);
     }
@@ -180,15 +197,14 @@ startBtn.addEventListener('click', async ()=>{
 });
 
 sendBtn.addEventListener('click', sendMessage);
-textInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') sendMessage(); });
+textInput.addEventListener('keydown', e => { if(e.key==='Enter') sendMessage(); });
 
 async function leaveRoom(){
   if(!currentRoom) return;
   try{
     await remove(ref(db, `rooms/${currentRoom}/users/${myId}`));
-    const snap = await new Promise((res, rej)=> onValue(ref(db, `rooms/${currentRoom}/users`), s=>{ res(s); }, e=>rej(e), {onlyOnce:true}));
-    const users = snap.exists() ? snap.val() : null;
-    if(!users){ await remove(ref(db, `rooms/${currentRoom}`)); }
+    const snap = await get(ref(db, `rooms/${currentRoom}/users`));
+    if(!snap.exists()){ await remove(ref(db, `rooms/${currentRoom}`)); }
   }catch(e){ console.warn(e); }
   currentRoom = null;
   partnerId = null;
