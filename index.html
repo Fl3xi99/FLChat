@@ -1,230 +1,208 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Random Text Chat (Omegle-like)</title>
-  <style>
-    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#9aa4b2;color-scheme:dark}
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#071029 0%, #071827 100%);}
-    .wrap{max-width:920px;margin:32px auto;padding:20px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
-    header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-    header h1{font-size:20px;margin:0}
-    .controls{display:flex;gap:8px;align-items:center;margin-bottom:12px}
-    button{background:var(--accent);border:none;color:#022;padding:8px 12px;border-radius:8px;cursor:pointer}
-    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
-    .status{font-size:13px;color:var(--muted)}
-    .chat{display:grid;grid-template-columns:1fr 320px;gap:12px}
-    .pane{background:var(--card);padding:12px;border-radius:10px;height:60vh;display:flex;flex-direction:column}
-    .messages{flex:1;overflow:auto;padding:8px;gap:8px;display:flex;flex-direction:column}
-    .msg{max-width:80%;padding:8px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));}
-    .me{align-self:flex-end;background:linear-gradient(180deg,rgba(6,182,212,0.12),rgba(6,182,212,0.06));}
-    .meta{font-size:12px;color:var(--muted);margin-bottom:8px}
-    .right-panel{padding:12px}
-    .input-row{display:flex;gap:8px;margin-top:8px}
-    input[type=text]{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:white}
-    textarea{resize:none}
-    footer{font-size:12px;color:var(--muted);margin-top:8px}
-    @media (max-width:880px){.chat{grid-template-columns:1fr;}.right-panel{order:2}}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Random Text Chat (Omegle-like)</title>
+<style>
+:root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#9aa4b2;color-scheme:dark}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#071029 0%, #071827 100%);}
+.wrap{max-width:920px;margin:32px auto;padding:20px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+header h1{font-size:20px;margin:0}
+.controls{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+button{background:var(--accent);border:none;color:#022;padding:8px 12px;border-radius:8px;cursor:pointer}
+button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+.status{font-size:13px;color:var(--muted)}
+.chat{display:grid;grid-template-columns:1fr 320px;gap:12px}
+.pane{background:var(--card);padding:12px;border-radius:10px;height:60vh;display:flex;flex-direction:column}
+.messages{flex:1;overflow:auto;padding:8px;gap:8px;display:flex;flex-direction:column}
+.msg{max-width:80%;padding:8px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));}
+.me{align-self:flex-end;background:linear-gradient(180deg,rgba(6,182,212,0.12),rgba(6,182,212,0.06));}
+.meta{font-size:12px;color:var(--muted);margin-bottom:8px}
+.right-panel{padding:12px}
+.input-row{display:flex;gap:8px;margin-top:8px}
+input[type=text]{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:white}
+textarea{resize:none}
+footer{font-size:12px;color:var(--muted);margin-top:8px}
+@media (max-width:880px){.chat{grid-template-columns:1fr;}.right-panel{order:2}}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>Random Text Chat — no cams</h1>
-      <div class="status" id="status">Not connected</div>
-    </header>
+<div class="wrap">
+  <header>
+    <h1>Random Text Chat — no cams</h1>
+    <div class="status" id="status">Not connected</div>
+  </header>
 
-    <div class="controls">
-      <button id="startBtn">Start Chat</button>
-      <button id="stopBtn" class="ghost">Leave</button>
-      <label class="status">Your name (optional): <input id="nickname" type="text" placeholder="Anonymous" style="margin-left:6px;padding:6px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:white"/></label>
-    </div>
-
-    <div class="chat">
-      <div class="pane">
-        <div class="meta">Room: <span id="roomId">—</span> · Partner: <span id="partnerId">—</span></div>
-        <div class="messages" id="messages"></div>
-
-        <div class="input-row">
-          <input id="textInput" type="text" placeholder="Type a message..." disabled />
-          <button id="sendBtn" disabled>Send</button>
-        </div>
-      </div>
-
-      <div class="pane right-panel">
-        <h3>Info</h3>
-        <p>This demo uses Firebase Realtime Database for simple matchmaking and message relay. To make it work you must paste your Firebase config into the <code>firebaseConfig</code> object in the script below and enable Realtime Database in your Firebase console.</p>
-        <ul>
-          <li>Works text-only — no cameras.</li>
-          <li>Messages are relayed via the database (not E2E encrypted). Don't send secrets.</li>
-          <li>For production: secure the DB rules and add abuse protections.</li>
-        </ul>
-        <div style="margin-top:10px">Hosting suggestions: GitHub Pages / Vercel / Netlify</div>
-      </div>
-    </div>
-
-    <footer>Once both users join a room you'll be able to exchange messages. Refresh to reset.</footer>
+  <div class="controls">
+    <button id="startBtn">Start Chat</button>
+    <button id="stopBtn" class="ghost">Leave</button>
+    <label class="status">Your name (optional): <input id="nickname" type="text" placeholder="Anonymous" style="margin-left:6px;padding:6px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:white"/></label>
   </div>
 
-  <!-- Firebase v11 modular imports -->
-  <script type="module">
-    // --- CONFIG: paste your Firebase config here ---
-    const firebaseConfig = {
+  <div class="chat">
+    <div class="pane">
+      <div class="meta">Room: <span id="roomId">—</span> · Partner: <span id="partnerId">—</span></div>
+      <div class="messages" id="messages"></div>
+
+      <div class="input-row">
+        <input id="textInput" type="text" placeholder="Type a message..." disabled />
+        <button id="sendBtn" disabled>Send</button>
+      </div>
+    </div>
+
+    <div class="pane right-panel">
+      <h3>Info</h3>
+      <p>This demo uses Firebase Realtime Database for simple matchmaking and message relay. Paste your Firebase config in the <code>firebaseConfig</code> object below and enable Realtime Database.</p>
+      <ul>
+        <li>Text-only chat — no cameras.</li>
+        <li>Messages are relayed via the database (not encrypted).</li>
+        <li>For production: secure DB rules and add abuse protections.</li>
+      </ul>
+      <div style="margin-top:10px">Hosting suggestions: GitHub Pages / Vercel / Netlify</div>
+    </div>
+  </div>
+
+  <footer>Once both users join a room you'll be able to exchange messages. Refresh to reset.</footer>
+</div>
+
+<script type="module">
+// --- CONFIG: paste your Firebase config here ---
+const firebaseConfig = {
   apiKey: "AIzaSyBzHYgg5EUAXRKxfAjCC1FXqwxOKi0yaiA",
   authDomain: "flchat-eac66.firebaseapp.com",
   databaseURL: "https://flchat-eac66-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "flchat-eac66",
-  storageBucket: "flchat-eac66.firebasestorage.appspot.com",
+  storageBucket: "flchat-eac66.appspot.com",
   messagingSenderId: "362003611935",
   appId: "1:362003611935:web:45f12a121dee1df65ef02a",
   measurementId: "G-H8EE0EMZ4N"
 };
-    // ------------------------------------------------
+// ------------------------------------------------
 
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
-    import { getDatabase, ref, push, set, onChildAdded, onValue, query, orderByChild, equalTo, update, remove } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
+import { getDatabase, ref, push, set, onChildAdded, onValue, update, remove } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js';
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-    // UI
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const sendBtn = document.getElementById('sendBtn');
-    const textInput = document.getElementById('textInput');
-    const messagesEl = document.getElementById('messages');
-    const roomIdEl = document.getElementById('roomId');
-    const partnerEl = document.getElementById('partnerId');
-    const statusEl = document.getElementById('status');
-    const nickEl = document.getElementById('nickname');
+// UI
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const sendBtn = document.getElementById('sendBtn');
+const textInput = document.getElementById('textInput');
+const messagesEl = document.getElementById('messages');
+const roomIdEl = document.getElementById('roomId');
+const partnerEl = document.getElementById('partnerId');
+const statusEl = document.getElementById('status');
+const nickEl = document.getElementById('nickname');
 
-    let myId = 'u_' + Math.random().toString(36).slice(2,9);
-    let currentRoom = null;
-    let partnerId = null;
+let myId = 'u_' + Math.random().toString(36).slice(2,9);
+let currentRoom = null;
+let partnerId = null;
 
-    function setStatus(t){ statusEl.textContent = t; }
+// FIXED room ID for testing
+const waitingRoomId = "testRoom";
 
-    function addMessage(text, who){
-      const div = document.createElement('div');
-      div.className = 'msg ' + (who === myId ? 'me' : '');
-      div.textContent = text;
-      messagesEl.appendChild(div);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
+function setStatus(t){ statusEl.textContent = t; }
 
-    async function findOrCreateRoom(){
-      setStatus('Searching for a partner...');
-      // Look for a room with status 'waiting'
-      const roomsRef = ref(db, 'rooms');
-      // Simple approach: read snapshot of rooms and pick first with status 'waiting'
-      let snapshot = await new Promise((res, rej) => onValue(roomsRef, s => { res(s); }, e => rej(e), {onlyOnce:true}));
-      const rooms = snapshot.exists() ? snapshot.val() : {};
+function addMessage(text, who){
+  const div = document.createElement('div');
+  div.className = 'msg ' + (who === myId ? 'me' : '');
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
 
-      for(const id in rooms){
-        const r = rooms[id];
-        if(r.status === 'waiting' && (!r.users || Object.keys(r.users).length < 2)){
-          // Join this room
-          const userPath = `rooms/${id}/users/${myId}`;
-          await set(ref(db, userPath), {joinedAt: Date.now(), name: nickEl.value || 'Anon'});
-          // If second user, mark room ready
-          await update(ref(db, `rooms/${id}`), {status:'ready'});
-          return id;
-        }
-      }
+async function findOrCreateRoom(){
+  setStatus('Searching for a partner...');
+  const roomRef = ref(db, `rooms/${waitingRoomId}`);
 
-      // No waiting room found: create one
-      const newRoomRef = push(ref(db, 'rooms'));
-      const id = newRoomRef.key;
-      await set(ref(db, `rooms/${id}`), { status: 'waiting', createdAt: Date.now() });
-      await set(ref(db, `rooms/${id}/users/${myId}`), {joinedAt: Date.now(), name: nickEl.value || 'Anon'});
-      return id;
-    }
+  // Add our user
+  await set(ref(db, `rooms/${waitingRoomId}/users/${myId}`), {
+    joinedAt: Date.now(),
+    name: nickEl.value || 'Anon'
+  });
 
-    function listenRoom(id){
-      currentRoom = id;
-      roomIdEl.textContent = id;
+  // Set room status
+  await update(roomRef, {status:'ready'});
+  return waitingRoomId;
+}
 
-      // Listen for messages
-      const msgsRef = ref(db, `rooms/${id}/messages`);
-      onChildAdded(msgsRef, (snap) => {
-        const m = snap.val();
-        if(!m) return;
-        addMessage((m.name ? m.name+': ' : '') + m.text, m.sender);
-      });
+function listenRoom(id){
+  currentRoom = id;
+  roomIdEl.textContent = id;
 
-      // Listen for user list / partner
-      const usersRef = ref(db, `rooms/${id}/users`);
-      onValue(usersRef, (snap) => {
-        const users = snap.exists() ? snap.val() : {};
-        const ids = Object.keys(users || {}).filter(u => u !== myId);
-        partnerId = ids.length ? ids[0] : null;
-        partnerEl.textContent = partnerId || '—';
-        if(partnerId) {
-          setStatus('Connected');
-          enableChat(true);
-        } else {
-          setStatus('Waiting for partner...');
-          enableChat(false);
-        }
-      });
+  // Messages
+  const msgsRef = ref(db, `rooms/${id}/messages`);
+  onChildAdded(msgsRef, (snap) => {
+    const m = snap.val();
+    if(!m) return;
+    addMessage((m.name ? m.name+': ' : '') + m.text, m.sender);
+  });
 
-      // Clean up room when both leave is handled on unload
-    }
-
-    function enableChat(enable){
-      textInput.disabled = !enable;
-      sendBtn.disabled = !enable;
-      if(enable) textInput.focus();
-    }
-
-    async function sendMessage(){
-      const text = textInput.value.trim();
-      if(!text || !currentRoom) return;
-      const msg = { sender: myId, name: nickEl.value || 'Anon', text, ts: Date.now() };
-      await push(ref(db, `rooms/${currentRoom}/messages`), msg);
-      textInput.value = '';
-    }
-
-    startBtn.addEventListener('click', async ()=>{
-      startBtn.disabled = true;
-      const id = await findOrCreateRoom();
-      listenRoom(id);
-    });
-
-    sendBtn.addEventListener('click', sendMessage);
-    textInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') sendMessage(); });
-
-    // Leave room and tidy up
-    async function leaveRoom(){
-      if(!currentRoom) return;
-      try{
-        await remove(ref(db, `rooms/${currentRoom}/users/${myId}`));
-        // If room has no users left, remove whole room
-        const snap = await new Promise((res, rej)=> onValue(ref(db, `rooms/${currentRoom}/users`), s=>{ res(s); }, e=>rej(e), {onlyOnce:true}));
-        const users = snap.exists() ? snap.val() : null;
-        if(!users){ await remove(ref(db, `rooms/${currentRoom}`)); }
-      }catch(e){ console.warn(e); }
-      currentRoom = null;
-      partnerId = null;
-      roomIdEl.textContent = '—';
-      partnerEl.textContent = '—';
-      setStatus('Not connected');
+  // Users / partner
+  const usersRef = ref(db, `rooms/${id}/users`);
+  onValue(usersRef, (snap) => {
+    const users = snap.exists() ? snap.val() : {};
+    const ids = Object.keys(users || {}).filter(u => u !== myId);
+    partnerId = ids.length ? ids[0] : null;
+    partnerEl.textContent = partnerId || '—';
+    if(partnerId) {
+      setStatus('Connected');
+      enableChat(true);
+    } else {
+      setStatus('Waiting for partner...');
       enableChat(false);
-      startBtn.disabled = false;
     }
+  });
+}
 
-    stopBtn.addEventListener('click', leaveRoom);
+function enableChat(enable){
+  textInput.disabled = !enable;
+  sendBtn.disabled = !enable;
+  if(enable) textInput.focus();
+}
 
-    // Ensure we leave on close
-    window.addEventListener('beforeunload', async (e)=>{
-      if(currentRoom) {
-        await leaveRoom();
-      }
-    });
+async function sendMessage(){
+  const text = textInput.value.trim();
+  if(!text || !currentRoom) return;
+  const msg = { sender: myId, name: nickEl.value || 'Anon', text, ts: Date.now() };
+  await push(ref(db, `rooms/${currentRoom}/messages`), msg);
+  textInput.value = '';
+}
 
-    // Initial UI state
-    setStatus('Not connected');
-  </script>
+startBtn.addEventListener('click', async ()=>{
+  startBtn.disabled = true;
+  const id = await findOrCreateRoom();
+  listenRoom(id);
+});
+
+sendBtn.addEventListener('click', sendMessage);
+textInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') sendMessage(); });
+
+async function leaveRoom(){
+  if(!currentRoom) return;
+  try{
+    await remove(ref(db, `rooms/${currentRoom}/users/${myId}`));
+    const snap = await new Promise((res, rej)=> onValue(ref(db, `rooms/${currentRoom}/users`), s=>{ res(s); }, e=>rej(e), {onlyOnce:true}));
+    const users = snap.exists() ? snap.val() : null;
+    if(!users){ await remove(ref(db, `rooms/${currentRoom}`)); }
+  }catch(e){ console.warn(e); }
+  currentRoom = null;
+  partnerId = null;
+  roomIdEl.textContent = '—';
+  partnerEl.textContent = '—';
+  setStatus('Not connected');
+  enableChat(false);
+  startBtn.disabled = false;
+}
+
+stopBtn.addEventListener('click', leaveRoom);
+window.addEventListener('beforeunload', async ()=>{ if(currentRoom) await leaveRoom(); });
+
+setStatus('Not connected');
+</script>
 </body>
 </html>
